@@ -110,7 +110,7 @@
     return out;
   }
 
-  const LAST_UP = { size: 0, read: 0, post: 0 };
+  const LAST_UP = { size: 0, read: 0, post: 0, fast: "" };
 
   async function postReply(message, content, blob, filename) {
     const fname = filename || "result.zip";
@@ -146,6 +146,7 @@
       throw new Error(`HTTP ${res.status} ${t.slice(0, 200)}`);
     } catch (e) {
       errors.push("formdata: " + (e?.message ?? e));
+      LAST_UP.fast = String(e?.message ?? e).slice(0, 80);
     }
 
     // Exact path: build the multipart body by hand (works without Blob support in FormData).
@@ -234,7 +235,7 @@
       stage = "upload";
       await postReply(message, `**${task.label.replace(" & reply", "")}**\n${String(state.summary || "Done")}`.slice(0, 1900), blob, state.name);
       const sec = (a, b) => ((b - a) / 1000).toFixed(1) + "s";
-      showToast(`Replied with the finished files (app ${sec(T0, tApp)}, download ${sec(tApp, tDl)}, upload ${sec(tDl, Date.now())}: read ${(LAST_UP.read / 1000).toFixed(1)}s, send ${(LAST_UP.post / 1000).toFixed(1)}s, ${Math.round(LAST_UP.size / 1024)} KB)`);
+      showToast(`Replied with the finished files (app ${sec(T0, tApp)}, download ${sec(tApp, tDl)}, upload ${sec(tDl, Date.now())}: read ${(LAST_UP.read / 1000).toFixed(1)}s, send ${(LAST_UP.post / 1000).toFixed(1)}s, ${Math.round(LAST_UP.size / 1024)} KB${LAST_UP.fast ? "; fast path failed: " + LAST_UP.fast : ""})`);
     } catch (e) {
       reportError(stage, e);
     } finally {
