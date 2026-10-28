@@ -203,7 +203,7 @@
       }
       const blob = await fr.blob();
       stage = "upload";
-      await postReply(message, String(state.summary || "Done").slice(0, 1900), blob, state.name);
+      await postReply(message, `**${task.label.replace(" & reply", "")}**\n${String(state.summary || "Done")}`.slice(0, 1900), blob, state.name);
       showToast("Replied with the finished files");
     } catch (e) {
       reportError(stage, e);
