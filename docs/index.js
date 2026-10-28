@@ -110,6 +110,8 @@
     return out;
   }
 
+  const LAST_UP = { size: 0, read: 0, post: 0 };
+
   async function postReply(message, content, blob, filename) {
     const fname = filename || "result.zip";
     const type = /\.txt$/i.test(fname) ? "text/plain" : "application/zip";
@@ -123,7 +125,9 @@
 
     // Attempt 1: build the multipart body by hand (works without Blob support in FormData).
     try {
+      const tR0 = Date.now();
       const bytes = await blobToBytes(blob);
+      LAST_UP.size = bytes.length; LAST_UP.read = Date.now() - tR0;
       const boundary = "----ps4st" + Math.random().toString(36).slice(2) + Date.now().toString(36);
       const body = concat([
         utf8(`--${boundary}\r\nContent-Disposition: form-data; name="payload_json"\r\nContent-Type: application/json\r\n\r\n${payload}\r\n`),
@@ -131,11 +135,13 @@
         bytes,
         utf8(`\r\n--${boundary}--\r\n`),
       ]);
+      const tP0 = Date.now();
       const res = await fetch(url, {
         method: "POST",
         headers: { Authorization: getToken(), "Content-Type": `multipart/form-data; boundary=${boundary}` },
         body,
       });
+      LAST_UP.post = Date.now() - tP0;
       if (res.ok) return;
       let t = ""; try { t = await res.text(); } catch (_) {}
       throw new Error(`HTTP ${res.status} ${t.slice(0, 200)}`);
@@ -218,7 +224,7 @@
       stage = "upload";
       await postReply(message, `**${task.label.replace(" & reply", "")}**\n${String(state.summary || "Done")}`.slice(0, 1900), blob, state.name);
       const sec = (a, b) => ((b - a) / 1000).toFixed(1) + "s";
-      showToast(`Replied with the finished files (app ${sec(T0, tApp)}, download ${sec(tApp, tDl)}, upload ${sec(tDl, Date.now())})`);
+      showToast(`Replied with the finished files (app ${sec(T0, tApp)}, download ${sec(tApp, tDl)}, upload ${sec(tDl, Date.now())}: read ${(LAST_UP.read / 1000).toFixed(1)}s, send ${(LAST_UP.post / 1000).toFixed(1)}s, ${Math.round(LAST_UP.size / 1024)} KB)`);
     } catch (e) {
       reportError(stage, e);
     } finally {
