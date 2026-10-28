@@ -123,7 +123,32 @@
     const url = `${API_BASE}/channels/${message.channel_id}/messages`;
     const errors = [];
 
-    // Attempt 1: build the multipart body by hand (works without Blob support in FormData).
+    // Fast path: FormData with the Blob (sent natively, no byte copying in JS). The reply's attachment size is
+    // checked against the real size; on a mismatch the message is deleted and the slow, exact path is used.
+    try {
+      const tP0 = Date.now();
+      const form = new FormData();
+      form.append("payload_json", payload);
+      let file = blob;
+      try { file = new Blob([blob], { type }); } catch (_) {}
+      try { file.name = fname; } catch (_) {}
+      form.append("files[0]", file);
+      const res = await fetch(url, { method: "POST", headers: { Authorization: getToken() }, body: form });
+      LAST_UP.post = Date.now() - tP0; LAST_UP.read = 0; LAST_UP.size = blob.size || 0;
+      const t = await res.text();
+      if (res.ok) {
+        let m = null; try { m = JSON.parse(t); } catch (_) {}
+        const got = m?.attachments?.[0]?.size;
+        if (got && blob.size && got === blob.size) return;
+        try { await fetch(`${url}/${m?.id}`, { method: "DELETE", headers: { Authorization: getToken() } }); } catch (_) {}
+        throw new Error(`size mismatch (${got} vs ${blob.size})`);
+      }
+      throw new Error(`HTTP ${res.status} ${t.slice(0, 200)}`);
+    } catch (e) {
+      errors.push("formdata: " + (e?.message ?? e));
+    }
+
+    // Exact path: build the multipart body by hand (works without Blob support in FormData).
     try {
       const tR0 = Date.now();
       const bytes = await blobToBytes(blob);
@@ -149,21 +174,6 @@
       errors.push("manual: " + (e?.message ?? e));
     }
 
-    // Attempt 2: FormData with the Blob.
-    try {
-      const form = new FormData();
-      form.append("payload_json", payload);
-      let file = blob;
-      try { file = new Blob([blob], { type }); } catch (_) {}
-      try { file.name = fname; } catch (_) {}
-      form.append("files[0]", file);
-      const res = await fetch(url, { method: "POST", headers: { Authorization: getToken() }, body: form });
-      if (res.ok) return;
-      let t = ""; try { t = await res.text(); } catch (_) {}
-      throw new Error(`HTTP ${res.status} ${t.slice(0, 200)}`);
-    } catch (e) {
-      errors.push("formdata: " + (e?.message ?? e));
-    }
     throw new Error("upload failed. " + errors.join(" | "));
   }
 
