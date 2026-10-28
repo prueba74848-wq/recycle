@@ -123,32 +123,7 @@
     const url = `${API_BASE}/channels/${message.channel_id}/messages`;
     const errors = [];
 
-    // Fast path: FormData with the Blob (sent natively, no byte copying in JS). The reply's attachment size is
-    // checked against the real size; on a mismatch the message is deleted and the slow, exact path is used.
-    try {
-      const tP0 = Date.now();
-      const form = new FormData();
-      form.append("payload_json", payload);
-      let file = blob;
-      try { file = new Blob([blob], { type }); } catch (_) {}
-      try { file.name = fname; } catch (_) {}
-      form.append("files[0]", file);
-      const res = await fetch(url, { method: "POST", headers: { Authorization: getToken() }, body: form });
-      LAST_UP.post = Date.now() - tP0; LAST_UP.read = 0; LAST_UP.size = blob.size || 0;
-      const t = await res.text();
-      if (res.ok) {
-        let m = null; try { m = JSON.parse(t); } catch (_) {}
-        const got = m?.attachments?.[0]?.size;
-        if (got && blob.size && got === blob.size) return;
-        try { await fetch(`${url}/${m?.id}`, { method: "DELETE", headers: { Authorization: getToken() } }); } catch (_) {}
-        throw new Error(`size mismatch (${got} vs ${blob.size})`);
-      }
-      throw new Error(`HTTP ${res.status} ${t.slice(0, 200)}`);
-    } catch (e) {
-      errors.push("formdata: " + (e?.message ?? e));
-      LAST_UP.fast = String(e?.message ?? e).slice(0, 80);
-    }
-
+    // (A native FormData fast path was tried: Discord's React Native build fails it with "Network request failed".)
     // Exact path: build the multipart body by hand (works without Blob support in FormData).
     try {
       const tR0 = Date.now();
@@ -223,6 +198,27 @@
       if (state.state === "error") return showToast("PS4 Save Tool: " + state.error);
 
       tApp = Date.now();
+      const label = task.label.replace(" & reply", "");
+      const content = `**${label}**\n${String(state.summary || "Done")}`.slice(0, 1900);
+
+      // Preferred: the app uploads the reply itself (native, fast). Falls back to uploading from here.
+      stage = "reply (app)";
+      try {
+        const reqBody = JSON.stringify({
+          id: job, token: getToken(), channel_id: message.channel_id, message_id: message.id, content,
+        }).replace(/[\u007f-\uffff]/g, (c) => "\\u" + ("0000" + c.charCodeAt(0).toString(16)).slice(-4));
+        const rr = await fetch(`${APP}/reply`, { method: "POST", headers: { "Content-Type": "application/json" }, body: reqBody });
+        const txt = await rr.text();
+        if (rr.ok) {
+          const secs = ((Date.now() - tApp) / 1000).toFixed(1);
+          return showToast(`Replied with the finished files (app ${((tApp - T0) / 1000).toFixed(1)}s, upload ${secs}s)`);
+        }
+        if (rr.status !== 404) throw new Error(`app upload failed: ${txt.slice(0, 200)}`);
+      } catch (e) {
+        if (!/app upload failed/.test(String(e?.message))) { /* old app or no route: fall through */ }
+        else showToast("App upload failed, trying from Discord…");
+      }
+
       stage = "download";
       const fr = await fetch(`${APP}/file?id=${job}`);
       if (!fr.ok) {
