@@ -62,9 +62,15 @@
       message_reference: { message_id: message.id, channel_id: message.channel_id, fail_if_not_exists: false },
       allowed_mentions: { parse: [], replied_user: false },
     }));
-    blob.name = filename || "result.zip";
-    blob.type = /\.txt$/i.test(blob.name) ? "text/plain" : "application/zip";
-    form.append("files[0]", blob);
+    const fname = filename || "result.zip";
+    const type = /\.txt$/i.test(fname) ? "text/plain" : "application/zip";
+    // Blob.type is read-only in React Native, so wrap the data in a new typed Blob.
+    let file = blob;
+    try { file = new Blob([blob], { type }); } catch (_) {}
+    try { file.name = fname; } catch (_) {
+      try { Object.defineProperty(file, "name", { value: fname, configurable: true }); } catch (__) {}
+    }
+    form.append("files[0]", file);
     const res = await fetch(`${API_BASE}/channels/${message.channel_id}/messages`, {
       method: "POST",
       headers: { Authorization: getToken() },     // your own session, like other client plugins

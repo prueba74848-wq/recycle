@@ -3,6 +3,6 @@
   "description": "Long-press a message with PS4 save files: run Resign/Decrypt/Encrypt in the PS4 Save Tool app and reply with the finished files.",
   "authors": [{ "name": "you" }],
   "main": "index.js",
-  "hash": "bab7839756e716f22bc03bddb658462fdd7cfb5827e881d680a4cefd4c59fbc2",
+  "hash": "06d2659f5b4375127c5170907826d2823cf693326147ddf9b1ff08b420236b72",
   "vendetta": { "icon": "ic_share_ios" }
 }
