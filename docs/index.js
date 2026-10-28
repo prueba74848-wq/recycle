@@ -23,6 +23,8 @@
     { op: "encrypt", label: "Encrypt & reply" },
     { op: "encrypt_keep_psn", label: "Encrypt (keep PSN) & reply" },
     { op: "sfo", label: "Read param.sfo & reply" },
+    { op: "reregion", label: "Reregion & reply" },
+    { op: "qc", label: "Quick codes & reply" },
   ];
 
   let unpatchSheet = null;
