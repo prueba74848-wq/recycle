@@ -1,0 +1,8 @@
+{
+  "name": "PS4 Save Tool",
+  "description": "Long-press a message with save files: send its attachment links to the PS4 Save Tool app, or copy them.",
+  "authors": [{ "name": "you" }],
+  "main": "index.js",
+  "hash": "572654c5ce27115be8768e23ea461cea73eae990556a1653cc5d521a33694027",
+  "vendetta": { "icon": "ic_share_ios" }
+}
