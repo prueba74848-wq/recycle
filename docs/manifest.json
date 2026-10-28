@@ -1,8 +1,8 @@
 {
   "name": "PS4 Save Tool",
-  "description": "Long-press a message with save files: send its attachment links to the PS4 Save Tool app, or copy them.",
+  "description": "Long-press a message with PS4 save files: run Resign/Decrypt/Encrypt in the PS4 Save Tool app and reply with the finished files.",
   "authors": [{ "name": "you" }],
   "main": "index.js",
-  "hash": "572654c5ce27115be8768e23ea461cea73eae990556a1653cc5d521a33694027",
+  "hash": "e304753081b7f3dcfae1ec2dabd1dc4b201a8f78fac23d36a4bbcc61b111ecd4",
   "vendetta": { "icon": "ic_share_ios" }
 }
