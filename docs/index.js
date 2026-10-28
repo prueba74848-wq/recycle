@@ -59,18 +59,25 @@
 
   // ---- helpers: React Native can't read Blobs as ArrayBuffer, so go through base64.
   const B64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-  const B64_LOOKUP = (() => { const m = {}; for (let i = 0; i < 64; i++) m[B64[i]] = i; return m; })();
+  const B64_LOOKUP = (() => { const m = new Uint8Array(256); for (let i = 0; i < 64; i++) m[B64.charCodeAt(i)] = i; return m; })();
 
   function base64ToBytes(b64) {
-    const clean = b64.replace(/[^A-Za-z0-9+/]/g, "");
-    const out = new Uint8Array(Math.floor((clean.length * 3) / 4));
-    let o = 0;
-    for (let i = 0; i < clean.length; i += 4) {
-      const n = (B64_LOOKUP[clean[i]] << 18) | (B64_LOOKUP[clean[i + 1]] << 12) |
-                ((B64_LOOKUP[clean[i + 2]] ?? 0) << 6) | (B64_LOOKUP[clean[i + 3]] ?? 0);
-      out[o++] = (n >> 16) & 255;
-      if (i + 2 < clean.length) out[o++] = (n >> 8) & 255;
-      if (i + 3 < clean.length) out[o++] = n & 255;
+    let len = b64.length;
+    while (len > 0 && (b64.charCodeAt(len - 1) === 61 || b64.charCodeAt(len - 1) < 33)) len--;
+    const out = new Uint8Array(Math.floor((len * 3) / 4));
+    let o = 0, i = 0;
+    for (; i + 3 < len; i += 4) {
+      const n = (B64_LOOKUP[b64.charCodeAt(i)] << 18) | (B64_LOOKUP[b64.charCodeAt(i + 1)] << 12) |
+                (B64_LOOKUP[b64.charCodeAt(i + 2)] << 6) | B64_LOOKUP[b64.charCodeAt(i + 3)];
+      out[o++] = n >> 16; out[o++] = (n >> 8) & 255; out[o++] = n & 255;
+    }
+    const rest = len - i;
+    if (rest === 2) {
+      const n = (B64_LOOKUP[b64.charCodeAt(i)] << 18) | (B64_LOOKUP[b64.charCodeAt(i + 1)] << 12);
+      out[o++] = n >> 16;
+    } else if (rest === 3) {
+      const n = (B64_LOOKUP[b64.charCodeAt(i)] << 18) | (B64_LOOKUP[b64.charCodeAt(i + 1)] << 12) | (B64_LOOKUP[b64.charCodeAt(i + 2)] << 6);
+      out[o++] = n >> 16; out[o++] = (n >> 8) & 255;
     }
     return out.subarray(0, o);
   }
@@ -167,6 +174,8 @@
     if (busy.has(message.id)) return showToast("Already working on this message");
     busy.add(message.id);
     let stage = "open";
+    const T0 = Date.now();
+    let tApp = 0, tDl = 0;
     try {
       const job = Math.random().toString(36).slice(2) + Date.now().toString(36);
       showToast(`${task.label.replace(" & reply", "")}: opening PS4 Save Tool…`);
@@ -177,7 +186,7 @@
       const started = Date.now();
       let state = null, reached = false, misses = 0;
       while (Date.now() - started < 10 * 60 * 1000) {
-        await sleep(2000);
+        await sleep(700);
         try {
           const r = await fetch(`${APP}/status?id=${job}`);
           if (r.ok) {
@@ -196,6 +205,7 @@
       if (!state || state.state === "running") return showToast("PS4 Save Tool took too long");
       if (state.state === "error") return showToast("PS4 Save Tool: " + state.error);
 
+      tApp = Date.now();
       stage = "download";
       const fr = await fetch(`${APP}/file?id=${job}`);
       if (!fr.ok) {
@@ -204,9 +214,11 @@
         throw new Error(`couldn't get the result from the app (HTTP ${fr.status}: ${body.slice(0, 120)})`);
       }
       const blob = await fr.blob();
+      tDl = Date.now();
       stage = "upload";
       await postReply(message, `**${task.label.replace(" & reply", "")}**\n${String(state.summary || "Done")}`.slice(0, 1900), blob, state.name);
-      showToast("Replied with the finished files");
+      const sec = (a, b) => ((b - a) / 1000).toFixed(1) + "s";
+      showToast(`Replied with the finished files (app ${sec(T0, tApp)}, download ${sec(tApp, tDl)}, upload ${sec(tDl, Date.now())})`);
     } catch (e) {
       reportError(stage, e);
     } finally {
