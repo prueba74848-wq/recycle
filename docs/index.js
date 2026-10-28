@@ -236,9 +236,12 @@
           if (!rows) return;
           const hide = () => LazyActionSheet.hideActionSheet();
           const extra = [];
-          for (const t of TASKS) {
-            extra.push(makeRow("PS4: " + t.label, "ic_share_ios", () => { hide(); runTask(message, t); }, "ps4st-" + t.op));
-          }
+          // forEach gives every row its own copy of the task (a plain loop variable got shared).
+          TASKS.forEach(function (task) {
+            const op = task.op;
+            const label = task.label;
+            extra.push(makeRow("PS4: " + label, "ic_share_ios", function () { hide(); runTask(message, { op: op, label: label }); }, "ps4st-" + op));
+          });
           extra.push(makeRow("PS4: open in app (more tools)", "ic_link", () => {
             hide();
             const urls = attachmentUrls(message);
