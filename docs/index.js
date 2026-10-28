@@ -55,15 +55,15 @@
     }
   }
 
-  async function postReply(message, content, blob) {
+  async function postReply(message, content, blob, filename) {
     const form = new FormData();
     form.append("payload_json", JSON.stringify({
       content,
       message_reference: { message_id: message.id, channel_id: message.channel_id, fail_if_not_exists: false },
       allowed_mentions: { parse: [], replied_user: false },
     }));
-    blob.name = "result.zip";
-    blob.type = "application/zip";
+    blob.name = filename || "result.zip";
+    blob.type = /\.txt$/i.test(blob.name) ? "text/plain" : "application/zip";
     form.append("files[0]", blob);
     const res = await fetch(`${API_BASE}/channels/${message.channel_id}/messages`, {
       method: "POST",
@@ -113,7 +113,7 @@
         throw new Error(`couldn't get the result from the app (HTTP ${fr.status}: ${body.slice(0, 120)})`);
       }
       const blob = await fr.blob();
-      await postReply(message, String(state.summary || "Done").slice(0, 1900), blob);
+      await postReply(message, String(state.summary || "Done").slice(0, 1900), blob, state.name);
       showToast("Replied with the finished files");
     } catch (e) {
       showToast("PS4 Save Tool: " + (e?.message ?? e));
