@@ -107,7 +107,11 @@
       if (state.state === "error") return showToast("PS4 Save Tool: " + state.error);
 
       const fr = await fetch(`${APP}/file?id=${job}`);
-      if (!fr.ok) throw new Error("couldn't get the result from the app");
+      if (!fr.ok) {
+        let body = "";
+        try { body = await fr.text(); } catch (_) {}
+        throw new Error(`couldn't get the result from the app (HTTP ${fr.status}: ${body.slice(0, 120)})`);
+      }
       const blob = await fr.blob();
       await postReply(message, String(state.summary || "Done").slice(0, 1900), blob);
       showToast("Replied with the finished files");
