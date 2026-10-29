@@ -22,7 +22,7 @@
     { op: "decrypt", label: "Decrypt & reply" },
     { op: "encrypt", label: "Encrypt & reply" },
     { op: "encrypt_keep_psn", label: "Encrypt (keep PSN) & reply" },
-    { op: "sfo", label: "Read param.sfo & reply" },
+    { op: "sfo", label: "Read param.sfo & copy" },
     { op: "reregion", label: "Reregion & reply" },
     { op: "qc", label: "Quick codes & reply" },
   ];
@@ -198,6 +198,13 @@
       if (state.state === "error") return showToast("PS4 Save Tool: " + state.error);
 
       tApp = Date.now();
+      if (task.op === "sfo") {
+        // No reply: put account id, title id, main title and subtitle on the clipboard.
+        if (!state.clip) throw new Error("the app returned no param.sfo data");
+        Clipboard.setString(state.clip);
+        const n = (state.clip.match(/\n\n/g) || []).length + 1;
+        return showToast(n > 1 ? `Copied ${n} saves' info to the clipboard` : "Copied to the clipboard: " + state.clip.split("\n").slice(1).join(" / "));
+      }
       const label = task.label.replace(" & reply", "");
       const content = `**${label}**\n${String(state.summary || "Done")}`.slice(0, 1900);
 
